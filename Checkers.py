@@ -29,28 +29,30 @@ MAX_TURNS = 40
 Board = [[0 for x in xrange(8)] for x in xrange(8)]
 Move = []
 BoardList = []
+tBoardList = []
 MoveList = []
+tMoveList = []
 jumped = False
 jumpStack = []
 jumpBoard = []
 
-def isKingPiece(a, b, player):
-    if Board[b][a] == 3+player:
+def isKingPiece(B, a, b, player):
+    if B[b][a] == 3+player:
         return True
     return False    
 
-def isPlayerPiece(a, b, player):
-    if Board[b][a] == 1+player or Board[b][a] == 3+player:
+def isPlayerPiece(B, a, b, player):
+    if B[b][a] == 1+player or B[b][a] == 3+player:
         return True
     return False
 
-def isOpponentPlayerPiece(a, b, player):
-    if Board[b][a] == 2-player or Board[b][a] == 4-player:
+def isOpponentPlayerPiece(B, a, b, player):
+    if B[b][a] == 2-player or B[b][a] == 4-player:
         return True
     return False
 
-def isOutOfBounds(a, b):
-    squareLen = len(Board)
+def isOutOfBounds(B, a, b):
+    squareLen = len(B)
     if a > squareLen-1 or b > squareLen-1 or a < 0 or b < 0:
         return True
     return False
@@ -68,6 +70,7 @@ def printMatrix(matrix):
         print
 
 def InitCheckerLayout():
+    global Board
 
     for a in xrange(0,8):
         for b in xrange(0, 8):
@@ -104,12 +107,12 @@ def InitializeGame():
     # Board[4][7] = 2
 
     # Scenario 4
-    # Board[7][2]=3
-    # Board[1][4]=1
-    # Board[1][6]=1
-    # Board[6][1]=2
-    # Board[4][3]=2
-    # Board[0][7]=4
+    Board[7][2]=3
+    Board[1][4]=1
+    Board[1][6]=1
+    Board[6][1]=2
+    Board[4][3]=2
+    Board[0][7]=4
 
 def SimulateGame():
    
@@ -139,7 +142,7 @@ def PlayTurn(player):
     canPlay = True
 
     Move = FindBestMove(player)
-    if not Move
+    if not Move:
         canPlay = False
     # if not len(MoveList):
     #     canPlay = False
@@ -165,15 +168,18 @@ def PlayTurn(player):
 
     return canPlay
 
-def FindSuccessors(player):
+def FindSuccessors(B, player):
     global jumped
 
+    tBoardList[:] = []
+    tMoveList[:] = []
+    printMatrix(B)
     jumped = False
     for a in xrange(8):
         for b in xrange(8):
-            if(a+b)%2 != 0 and isPlayerPiece(a, b, player):
-                    moves = FindMoves(Board, a, b, a, b, 0, player)
-                    #print "MOVE SEQUENCE: ", moves
+            if(a+b)%2 != 0 and isPlayerPiece(B, a, b, player):
+                    moves = FindMoves(B, a, b, a, b, 0, player)
+                    print "MOVE SEQUENCE: ", moves
 
 def JumpNode(a, b, aa, bb):
     aDiff = (aa-a)/abs(aa-a)
@@ -187,29 +193,94 @@ def CheckPromotion(B, a, b, player):
 
 def FindBestMove(player):
     global Board
-    FindSuccessors(player)
+    #FindSuccessors(player)
 
-    if len(MoveList) == 0:
-        return False
+    print "Finding best Move for player:", player
+    raw_input()
+    [maxValue, maxIndex] = MaxValue(Board, player, 0)
+    print "MaxValue: ", maxValue
+    print "MaxIndex: ", maxIndex
 
-    value = MaxValue(Board, player, 0)
+    Board = BoardList[maxIndex]
+    return MoveList[maxIndex]
 
-    for i in xrange(len(MoveList)):
-        if value == MinValue(BoardList[i], (player+1)%2, 1)
-            Board = BoardList[i]
-            Move = MoveList[i]
+
     
 def MaxValue(B, player, depth):
-    FindSuccessors(player)
+    print "Finding Max Value at Depth", depth, " for Player: ", player
+    FindSuccessors(B, player)
+    print "Found ", len(tBoardList), " Moves: ", tMoveList
+    if depth == 0:
+        BoardList[:] = tBoardList
+        MoveList[:] = tMoveList
+        
+    dBoardList = copy.deepcopy(tBoardList)
+    dMoveList  = copy.deepcopy(tMoveList)
 
-    if ReachedTerminalState(B, player, depth):
-        value = EvalState(B, player)
+    maxValue = -9999
+    maxIndex = -1
+
+    if ReachedTerminalState(B, player, depth) or (len(dMoveList) == 0):
+        maxValue = EvalState(B, player)
+        print "Terminal at Max Node at Depth", depth, " for player ", player, " Value: ", maxValue
     else:
-        value = -9999
-        for i in xrange(len(MoveList)):
-            value = max(value, MinValue(BoardList[i], (player+1)%2,  depth+1)
+        
+        for i in xrange(len(dMoveList)):
+            [value, t] = MinValue(dBoardList[i], (player+1)%2,  depth+1)
+            if value > maxValue:
+                maxValue = value
+                maxIndex = i
+
+    return [maxValue, maxIndex]
 
 
+
+def MinValue(B, player, depth):
+    print "Finding Min Value at Depth", depth, " for Player: ", player
+    FindSuccessors(B, player)
+    print "Found ", len(tBoardList), " Moves"
+
+    dBoardList = copy.deepcopy(tBoardList)
+    dMoveList  = copy.deepcopy(tMoveList)
+
+    minValue = 9999
+    minIndex = -1
+
+    if ReachedTerminalState(B, player, depth) or (len(dMoveList) == 0):
+        #print "Reached Terminal at Min Node"
+        minValue = EvalState(B, player)
+        print "Terminal at Max Node at Depth", depth, " for player ", player, " Value: ", minValue
+    else:
+        for i in xrange(len(dBoardList)):
+            [value, t] = MaxValue(dBoardList[i], (player+1)%2, depth+1)
+            if value < minValue:
+                minValue = value
+                minIndex = i
+
+    return [minValue, minIndex]
+
+
+def ReachedTerminalState(B, player, depth):
+    max_depth = 3
+
+    if(depth > max_depth and depth%2 == 0):
+        return True
+    return False
+
+def EvalState(B, player):
+    printMatrix(B)
+    value = 0
+    for a in xrange(8):
+        for b in xrange(8):
+            if (a+b)%2 != 0:
+                if B[b][a] == 1+player or B[b][a] == 3+player:
+                    value += 1
+                elif B[b][a] == 2-player or B[b][a] == 4-player:
+                    value -= 1
+
+    #print "Returned Value ", value
+    return value
+    
 def FindMoves(B, a, b, aa, bb, moves, player):
 
     global BoardList, MoveList
@@ -217,7 +288,7 @@ def FindMoves(B, a, b, aa, bb, moves, player):
 
     # Terminal Conditions
 
-    if isOutOfBounds(aa,bb):
+    if isOutOfBounds(B,aa,bb):
         #print "[",a,",",b,"]->[",aa,",",bb,"] : ", "Out of Bounds"
         return
     
@@ -229,8 +300,8 @@ def FindMoves(B, a, b, aa, bb, moves, player):
             BT[b][a] = 0
             CheckPromotion(BT, aa, bb, player)
             if not jumped:
-                MoveList.append([aa,bb])
-                BoardList.append(BT)
+                tMoveList.append([aa,bb])
+                tBoardList.append(BT)
                 return [aa, bb] #Simple Move Complete
             else: 
                 return
@@ -247,8 +318,8 @@ def FindMoves(B, a, b, aa, bb, moves, player):
             jumpStack.append([aa,bb])
 
             if not jumped:
-                BoardList[:] = []
-                MoveList[:] = []
+                tBoardList[:] = []
+                tMoveList[:] = []
                 jumped = True
 
             #print "Board[",aa,"][",bb,"]: ", jumpBoard[bb][aa]
@@ -256,25 +327,26 @@ def FindMoves(B, a, b, aa, bb, moves, player):
             FindMoves(jumpBoard, aa, bb, aa, bb, moves, player)
 
             if moves == 2:
-                BoardList.append(jumpBoard)
-                MoveList.append(jumpStack)
+                tBoardList.append(jumpBoard)
+                tMoveList.append(jumpStack)
             return jumpStack
         else:
+            #printMatrix(B)
             #print "[",a,",",b,"]->[",aa,",",bb,"] : ", "Invalid Empty"
             return #Cant move any further
         
-    elif (a != aa and b != bb) and isPlayerPiece(aa, bb, player):
+    elif (a != aa and b != bb) and isPlayerPiece(B, aa, bb, player):
         #print "[",a,",",b,"]->[",aa,",",bb,"] : ", "Invalid: Same Player Piece"
         return #Cant move any further
     
-    elif isOpponentPlayerPiece(aa, bb, player) and moves%2 != 0:
+    elif isOpponentPlayerPiece(B, aa, bb, player) and moves%2 != 0:
         #Try to Jump
         #print "[",a,",",b,"]->[",aa,",",bb,"] : ", "Trying to Jump"
         jn = JumpNode(a, b, aa, bb)
         return FindMoves(B, aa, bb, jn[0], jn[1], moves+1, player)
         
 
-    if isKingPiece(aa, bb, player):
+    if isKingPiece(B, aa, bb, player):
         #print "King Piece ===> "
         return [ FindMoves(B, aa, bb, aa-1, b-1, moves+1, player) ] + \
                [ FindMoves(B, aa, bb, aa+1, b-1, moves+1, player) ] + \
